@@ -147,7 +147,7 @@ def generate_images(request):
 @api_view(['GET'])
 def get_user_prompts(request, username):
     user = User.objects.get(username=username)
-    prompts = ImageGeneration.objects.filter(user=user).values('id','prompt', 'num_images')  # Query all prompts and select specific fields
+    prompts = ImageGeneration.objects.filter(user=user).values('id','prompt', 'num_images', 'created_at').order_by('-created_at')  # Query all prompts and select specific fields
     for prompt in prompts:
         prompt['prompt'] = ' '.join(prompt['prompt'].split()[:3]) + ' ...'
     
