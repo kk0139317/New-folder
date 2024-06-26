@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_extensions',
     'sslserver',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -170,5 +171,6 @@ CORS_ORIGIN_WHITELIST = ['http://localhost:3000']  # Replace with your frontend 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
