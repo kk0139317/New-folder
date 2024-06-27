@@ -17,10 +17,6 @@ import random
 from PIL import Image, ImageDraw
 import json
 from rest_framework.decorators import api_view, permission_classes
-import requests
-from io import BytesIO
-from randimage import get_random_image, show_array
-
 
 @api_view(['POST'])
 def CreateUserView(request):
@@ -152,43 +148,17 @@ def check_auth_view(request):
 #         return JsonResponse({'images': all_images})
     
 
-# def create_sample_image(prompt, num_images, folder_name):
-#     if not os.path.exists(folder_name):
-#         os.makedirs(folder_name)
-#     images = []
-#     for i in range(num_images):
-#         img = Image.new('RGB', (300, 300), color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
-#         d = ImageDraw.Draw(img)
-#         d.text((10, 10), f"{prompt} {i+1}", fill=(255, 255, 255))
-#         img_path = os.path.join(folder_name, f"{prompt}_{i+1}.png")
-#         img.save(img_path)
-#         images.append(img_path)
-#     return images
-
-
 def create_sample_image(prompt, num_images, folder_name):
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
-    
     images = []
-    ri = get_random_image((128,128))
-
     for i in range(num_images):
-        try:
-            img_url = ri.get_random_image_url()
-            response = requests.get(img_url)
-            if response.status_code == 200:
-                img = Image.open(BytesIO(response.content))
-                d = ImageDraw.Draw(img)
-                d.text((10, 10), f"{prompt} {i+1}", fill=(255, 255, 255))
-                img_path = os.path.join(folder_name, f"{prompt}_{i+1}.png")
-                img.save(img_path)
-                images.append(img_path)
-            else:
-                print(f"Failed to download image {i+1}: Status Code {response.status_code}")
-        except Exception as e:
-            print(f"Failed to download image {i+1}: {str(e)}")
-
+        img = Image.new('RGB', (300, 300), color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+        d = ImageDraw.Draw(img)
+        d.text((10, 10), f"{prompt} {i+1}", fill=(255, 255, 255))
+        img_path = os.path.join(folder_name, f"{prompt}_{i+1}.png")
+        img.save(img_path)
+        images.append(img_path)
     return images
 
 @csrf_exempt
