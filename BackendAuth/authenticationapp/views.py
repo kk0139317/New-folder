@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import ImageGeneration, GeneratedImage
+from .models import ImageGeneration, GeneratedImage, SubPrompt, MasterPrompt
 from rest_framework.permissions import IsAuthenticated
 import os
 from django.conf import settings
@@ -17,7 +17,6 @@ import random
 from PIL import Image, ImageDraw
 import json
 from rest_framework.decorators import api_view, permission_classes
-
 
 @api_view(['POST'])
 def CreateUserView(request):
@@ -98,14 +97,65 @@ def check_auth_view(request):
 
 # Image Generation 
 
+# def create_sample_image(prompt, num_images, folder_name):
+#     if not os.path.exists(folder_name):
+#         os.makedirs(folder_name)
+#     images = []
+#     for i in range(num_images):
+#         img = Image.new('RGB', (300, 300), color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+#         d = ImageDraw.Draw(img)
+#         d.text((10, 10), f"{prompt} {i+1}", fill=(255, 255, 255))
+#         img_path = os.path.join(folder_name, f"{prompt}_{i+1}.png")
+#         img.save(img_path)
+#         images.append(img_path)
+#     return images
+
+# @csrf_exempt
+# def generate_images(request):
+#     if request.method == 'POST':
+#         data = json.loads(request.body)
+#         prompts = data.get('prompts')
+#         num_images = int(data.get('numImages'))
+#         username = data.get('username')
+
+#         user = User.objects.get(username=username)  # Get the user from the database
+#         prompt_list = prompts.split(',')
+
+#         all_images = []
+
+#         for prompt in prompt_list:
+#             prompt = prompt.strip()  # Clean any extra whitespace
+#             generation = ImageGeneration.objects.create(
+#                 user=user,
+#                 prompt=prompt,
+#                 num_images=num_images,
+#                 created_at=timezone.now()
+#             )
+
+#             base_folder_name = os.path.join(settings.MEDIA_ROOT, f"master_prompt_{username}", prompt.replace(' ', '_'))
+
+#             for i in range(5):
+#                 folder = os.path.join(base_folder_name, f"scenario_{i+1}")
+#                 images = create_sample_image(prompt, num_images, folder)
+#                 for img_path in images:
+#                     image_instance = GeneratedImage.objects.create(generation=generation, image=img_path)
+#                     all_images.append({
+#                         'url': image_instance.image.url,
+#                         'prompt': prompt,
+#                         'scenario': i + 1
+#                     })
+
+#         return JsonResponse({'images': all_images})
+    
+
 def create_sample_image(prompt, num_images, folder_name):
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
     images = []
     for i in range(num_images):
-        img = Image.new('RGB', (300, 300), color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+        img = Image.new('RGB', (300, 300), color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
         d = ImageDraw.Draw(img)
-        d.text((10,10), f"{prompt} {i+1}", fill=(255,255,255))
+        d.text((10, 10), f"{prompt} {i+1}", fill=(255, 255, 255))
         img_path = os.path.join(folder_name, f"{prompt}_{i+1}.png")
         img.save(img_path)
         images.append(img_path)
@@ -115,35 +165,38 @@ def create_sample_image(prompt, num_images, folder_name):
 def generate_images(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        prompt = data.get('prompt')
+        prompts = data.get('prompts')
         num_images = int(data.get('numImages'))
         username = data.get('username')
 
-        user = User.objects.get(username=username)  # Get the user from the database
+        user = User.objects.get(username=username)
+        prompt_list = [prompt.strip() for prompt in prompts.split(',')]
 
-        generation = ImageGeneration.objects.create(
-            user=user,
-            prompt=prompt,
-            num_images=num_images,
-            created_at=timezone.now()
-        )
+        master_prompt = MasterPrompt.objects.create(user=user, created_at=timezone.now())
 
-        folder_names = [os.path.join(settings.MEDIA_ROOT, f"{prompt}_set_{i+1}") for i in range(5)]
         all_images = []
 
-        for folder in folder_names:
-            images = create_sample_image(prompt, num_images, folder)
-            for img_path in images:
-                image_instance = GeneratedImage.objects.create(generation=generation, image=img_path)
-                all_images.append({
-                    'url': image_instance.image.url,
-                    'prompt': prompt,
-                    'folder': folder
-                })
+        for prompt in prompt_list:
+            sub_prompt = SubPrompt.objects.create(master_prompt=master_prompt, prompt_text=prompt)
+
+            for i in range(5):
+                generation = ImageGeneration.objects.create(
+                    sub_prompt=sub_prompt,
+                    num_images=num_images,
+                    created_at=timezone.now()
+                )
+
+                folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}/scenario_{i+1}")
+                images = create_sample_image(prompt, num_images, folder)
+                for img_path in images:
+                    image_instance = GeneratedImage.objects.create(generation=generation, image=img_path)
+                    all_images.append({
+                        'url': image_instance.image.url,
+                        'prompt': prompt,
+                        'scenario': i + 1
+                    })
 
         return JsonResponse({'images': all_images})
-    
-
 @api_view(['GET'])
 def get_user_prompts(request, username):
     user = User.objects.get(username=username)

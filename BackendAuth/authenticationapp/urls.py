@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
-from . import views
+from userpannel import views
+from adminpannel import views as admin_views
+
 urlpatterns = [
     path('createuser/', views.CreateUserView, name='createuser'),
     path('loginuser/', views.LoginUserView, name='loginuser'),
