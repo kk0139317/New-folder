@@ -161,20 +161,60 @@ def create_sample_image(prompt, num_images, folder_name):
         images.append(img_path)
     return images
 
+# @csrf_exempt
+# def generate_images(request):
+#     if request.method == 'POST':
+#         data = json.loads(request.body)
+#         print('The data is',data)
+#         prompts = data.get('prompt')
+#         num_images = int(data.get('numImages'))
+#         username = data.get('username')
+#         print(prompts, num_images, username)
+#         user = User.objects.get(username=username)
+#         prompt_list = [prompt.strip() for prompt in prompts.split(',')]
+
+#         master_prompt = UserMasterPrompt.objects.create(user=user, created_at=timezone.now())
+
+#         all_images = []
+
+#         for prompt in prompt_list:
+#             sub_prompt = UserSubPrompt.objects.create(master_prompt=master_prompt, prompt_text=prompt)
+
+#             for i in range(5):
+#                 generation = UserImageGeneration.objects.create(
+#                     sub_prompt=sub_prompt,
+#                     num_images=num_images,
+#                     created_at=timezone.now()
+#                 )
+
+#                 folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}/scenario_{i+1}")
+#                 images = create_sample_image(prompt, num_images, folder)
+#                 for img_path in images:
+#                     image_instance = UserGeneratedImage.objects.create(generation=generation, image=img_path)
+#                     all_images.append({
+#                         'url': image_instance.image.url,
+#                         'prompt': prompt,
+#                         'scenario': i + 1
+#                     })
+
+#         return JsonResponse({'images': all_images})
+
+
 @csrf_exempt
 def generate_images(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        print('The data is',data)
         prompts = data.get('prompt')
         num_images = int(data.get('numImages'))
         username = data.get('username')
-        print(prompts, num_images, username)
-        user = User.objects.get(username=username)
+        
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        
         prompt_list = [prompt.strip() for prompt in prompts.split(',')]
-
         master_prompt = UserMasterPrompt.objects.create(user=user, created_at=timezone.now())
-
         all_images = []
 
         for prompt in prompt_list:
@@ -189,15 +229,22 @@ def generate_images(request):
 
                 folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}/scenario_{i+1}")
                 images = create_sample_image(prompt, num_images, folder)
+                
                 for img_path in images:
                     image_instance = UserGeneratedImage.objects.create(generation=generation, image=img_path)
                     all_images.append({
+                        'id': image_instance.id,  # Assuming you want the ID of the generated image instance
                         'url': image_instance.image.url,
-                        'prompt': prompt,
-                        'scenario': i + 1
+                        'sub_prompt_id': sub_prompt.id,
+                        'sub_prompt_text': sub_prompt.prompt_text,
+                        'num_images': generation.num_images,
+                        'created_at': generation.created_at.strftime('%Y-%m-%d %H:%M:%S'),  # Format datetime as string
                     })
 
         return JsonResponse({'images': all_images})
+
+    return JsonResponse({'error': 'Invalid method'}, status=405)
+
 # @api_view(['GET'])
 # def get_user_prompts(request, username):
 #     user = User.objects.get(username=username)
