@@ -214,7 +214,7 @@ def generate_images(request):
             return JsonResponse({'error': 'User not found'}, status=404)
         
         prompt_list = [prompt.strip() for prompt in prompts.split(',')]
-        master_prompt = UserMasterPrompt.objects.create(user=user, created_at=timezone.now())
+        master_prompt = UserMasterPrompt.objects.create(user=user, created_at=timezone.now(), prompt=prompts)
         all_images = []
 
         for prompt in prompt_list:
@@ -259,7 +259,7 @@ def generate_images(request):
 def get_user_prompts(request, username):
     if request.method == 'GET':
         master_prompts = UserMasterPrompt.objects.filter(user__username=username).order_by('-created_at').values(
-            'id', 'unique_id', 'created_at'
+            'id', 'unique_id', 'created_at', 'prompt'
         )
         data = []
         for master_prompt in master_prompts:
@@ -267,11 +267,12 @@ def get_user_prompts(request, username):
             master_prompt_data = {
                 'id': master_prompt['id'],
                 'unique_id': master_prompt['unique_id'],
+                'master_prompt': master_prompt['prompt'],
                 'created_at': master_prompt['created_at'],
                 'sub_prompts': list(sub_prompts)
             }
             data.append(master_prompt_data)
-        
+        # print(data)
         return JsonResponse(data, safe=False)
 
 

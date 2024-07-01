@@ -13,27 +13,27 @@ from django.contrib.auth.models import User
 # from django.contrib.auth.models import User
 # from .models import MasterPrompt, SubPrompt, ImageGeneration, GeneratedImage
 
-def Index(request):
-    data = UserMasterPrompt.objects.all().values('id', 'prompt', 'num_images', 'created_at', 'user__username').order_by('-created_at')  # Use 'user__username' to get the username
-    for prompt in data:
-        prompt['prompt'] = ' '.join(prompt['prompt'].split()[:3]) + ' ...'
+# def Index(request):
+#     data = UserMasterPrompt.objects.all().values('id', 'prompt', 'num_images', 'created_at', 'user__username').order_by('-created_at')  # Use 'user__username' to get the username
+#     for prompt in data:
+#         prompt['prompt'] = ' '.join(prompt['prompt'].split()[:3]) + ' ...'
 
-    return render(request, 'admin/index.html', {'data':data})
+#     return render(request, 'admin/index.html', {'data':data})
 
-def Images(request, pid):
-    generations = UserImageGeneration.objects.filter(id=pid)
-    all_images = []
+# def Images(request, pid):
+#     generations = UserImageGeneration.objects.filter(id=pid)
+#     all_images = []
 
-    for generation in generations:
-        images = UserGeneratedImage.objects.filter(generation=generation)
-        for image in images:
-            all_images.append({
-                'id': image.id,
-                'url': image.image.url,
-                'prompt': generation.prompt,
-            })
+#     for generation in generations:
+#         images = UserGeneratedImage.objects.filter(generation=generation)
+#         for image in images:
+#             all_images.append({
+#                 'id': image.id,
+#                 'url': image.image.url,
+#                 'prompt': generation.prompt,
+#             })
 
-    return render(request, 'admin/images.html', {'generations': all_images})  # Pass the prompt ID to the image
+#     return render(request, 'admin/images.html', {'generations': all_images})  # Pass the prompt ID to the image
 
 
 
