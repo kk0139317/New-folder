@@ -220,7 +220,7 @@ def generate_images(request):
         for prompt in prompt_list:
             sub_prompt = UserSubPrompt.objects.create(master_prompt=master_prompt, prompt_text=prompt)
 
-            for i in range(5):
+            for i in range(1):
                 generation = UserImageGeneration.objects.create(
                     sub_prompt=sub_prompt,
                     num_images=num_images,
