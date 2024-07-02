@@ -26,6 +26,7 @@ class UserImageGeneration(models.Model):
 
 
 
+
 class UserGeneratedImage(models.Model):
     generation = models.ForeignKey('UserImageGeneration', on_delete=models.CASCADE, related_name='images')
     image_path = models.TextField()  # Store image paths as comma-separated string
@@ -56,3 +57,15 @@ class UserGeneratedImage(models.Model):
 #     def get_image_folder_path(self):
 #         return f"/media/{self.generation.sub_prompt.master_prompt.unique_id}/{self.generation.sub_prompt.prompt_text.replace(' ', '_')}"
 
+
+class ProfileDetail(models.Model):
+    # user = models.ForeignKey(User, on_delete=models.CASCADE, null=True )
+    username = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, null=True )
+    address = models.TextField( null=True )
+    credit = models.FloatField(default=0)
+    image = models.ImageField(upload_to='profile_images/', null=True)
+    def __str__(self):
+        return self.name

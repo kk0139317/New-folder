@@ -7,9 +7,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import UserImageGeneration, UserGeneratedImage, UserSubPrompt, UserMasterPrompt
+from .models import UserImageGeneration, UserGeneratedImage, UserSubPrompt, UserMasterPrompt, ProfileDetail
 from rest_framework.permissions import IsAuthenticated
 import os
+from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.utils import timezone
 import random
@@ -27,6 +28,7 @@ def CreateUserView(request):
     last_name = data.get('lastName')
     email = data.get('email')
     password = data.get('password')
+    name = data.get('name')
 
     if not email or not password:
         return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -36,7 +38,9 @@ def CreateUserView(request):
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(username=email, email=email, password=password)
-
+        profile = ProfileDetail(username=email, email=email, credit=20, name=name)
+        profile.save()
+        
         if first_name:
             user.first_name = first_name
         if last_name:
@@ -94,7 +98,7 @@ def generate_images(request):
         prompts = data.get('prompt')
         num_images = int(data.get('numImages'))
         username = data.get('username')
-        
+        profile = ProfileDetail.objects.get(username=username)
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
@@ -117,6 +121,7 @@ def generate_images(request):
                 folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}")
                 location = os.path.join(settings.MEDIA_URL, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}")
                 images = create_sample_image(prompt, num_images, folder, location)
+
                 
                 for img_path in images:
                     # Log the length of the image path
@@ -125,6 +130,8 @@ def generate_images(request):
                         logger.warning(f'Image path exceeds 1024 characters: {img_path}')
                     
                     image_instance = UserGeneratedImage.objects.create(generation=generation, image_path=img_path)
+                    profile.credit -= 0.25
+                    profile.save()
                     all_images.append({
                         'id': image_instance.id,
                         'url': image_instance.image_path,
@@ -183,3 +190,22 @@ def fetch_images(request):
                     })
 
         return JsonResponse({'images': all_images})
+
+
+@csrf_exempt
+def get_profile(request, username):
+    if request.method == 'GET':
+        try:
+            profile = ProfileDetail.objects.get(username=username)
+            profile_data = {
+                'credit': profile.credit,
+                'name': profile.name,
+                'email': profile.email,
+                'username': profile.username,
+                'photo': profile.image.url if profile.image else None  # Assuming image is a FileField/ImageField
+            }
+            return JsonResponse(profile_data)
+        except ObjectDoesNotExist:
+            return JsonResponse({'error': 'Profile not found'}, status=404)
+    else:
+        return JsonResponse({'error': 'Invalid method'}, status=405)
