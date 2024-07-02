@@ -1,10 +1,9 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth.models import User  # Assuming you are using Django's built-in User model
-from django.contrib.auth import authenticate, login
-from django.http import JsonResponse
+from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -16,7 +15,10 @@ from django.utils import timezone
 import random
 from PIL import Image, ImageDraw
 import json
-from rest_framework.decorators import api_view, permission_classes
+import logging
+from .utils import create_sample_image
+
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 def CreateUserView(request):
@@ -26,46 +28,25 @@ def CreateUserView(request):
     email = data.get('email')
     password = data.get('password')
 
-    # Validate input data (this is crucial to prevent errors and ensure data integrity)
     if not email or not password:
         return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Check if the user already exists based on email
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create the user
         user = User.objects.create_user(username=email, email=email, password=password)
 
-        # Optionally, set additional fields if provided
         if first_name:
             user.first_name = first_name
         if last_name:
             user.last_name = last_name
 
         user.save()
-
-        # Optionally, perform additional tasks like sending confirmation email
-        print("User created successfully!")
         return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-# @api_view(['POST'])
-# def LoginUserView(request):
-#     data = request.data
-#     email = data.get('email')
-#     password = data.get('password')
-#     user = authenticate(username=email, password=password)
-#     if user is not None:
-#         login(request, user)
-#         print("Login Successfully!")
-#         return Response({'message': 'Login Successfully'}, status=status.HTTP_201_CREATED)
-#     else:
-#          return Response({'error': 'Login Password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 def LoginUserView(request):
@@ -93,10 +74,6 @@ def logout_view(request):
 def check_auth_view(request):
     return JsonResponse({'username': request.user.username})
 
-
-
-# Image Generation 
-
 # def create_sample_image(prompt, num_images, folder_name):
 #     if not os.path.exists(folder_name):
 #         os.makedirs(folder_name)
@@ -109,96 +86,6 @@ def check_auth_view(request):
 #         img.save(img_path)
 #         images.append(img_path)
 #     return images
-
-# @csrf_exempt
-# def generate_images(request):
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         prompts = data.get('prompts')
-#         num_images = int(data.get('numImages'))
-#         username = data.get('username')
-
-#         user = User.objects.get(username=username)  # Get the user from the database
-#         prompt_list = prompts.split(',')
-
-#         all_images = []
-
-#         for prompt in prompt_list:
-#             prompt = prompt.strip()  # Clean any extra whitespace
-#             generation = ImageGeneration.objects.create(
-#                 user=user,
-#                 prompt=prompt,
-#                 num_images=num_images,
-#                 created_at=timezone.now()
-#             )
-
-#             base_folder_name = os.path.join(settings.MEDIA_ROOT, f"master_prompt_{username}", prompt.replace(' ', '_'))
-
-#             for i in range(5):
-#                 folder = os.path.join(base_folder_name, f"scenario_{i+1}")
-#                 images = create_sample_image(prompt, num_images, folder)
-#                 for img_path in images:
-#                     image_instance = GeneratedImage.objects.create(generation=generation, image=img_path)
-#                     all_images.append({
-#                         'url': image_instance.image.url,
-#                         'prompt': prompt,
-#                         'scenario': i + 1
-#                     })
-
-#         return JsonResponse({'images': all_images})
-    
-
-def create_sample_image(prompt, num_images, folder_name):
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-    images = []
-    for i in range(num_images):
-        img = Image.new('RGB', (300, 300), color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
-        d = ImageDraw.Draw(img)
-        d.text((10, 10), f"{prompt} {i+1}", fill=(255, 255, 255))
-        img_path = os.path.join(folder_name, f"{prompt}_{i+1}.png")
-        img.save(img_path)
-        images.append(img_path)
-    return images
-
-# @csrf_exempt
-# def generate_images(request):
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         print('The data is',data)
-#         prompts = data.get('prompt')
-#         num_images = int(data.get('numImages'))
-#         username = data.get('username')
-#         print(prompts, num_images, username)
-#         user = User.objects.get(username=username)
-#         prompt_list = [prompt.strip() for prompt in prompts.split(',')]
-
-#         master_prompt = UserMasterPrompt.objects.create(user=user, created_at=timezone.now())
-
-#         all_images = []
-
-#         for prompt in prompt_list:
-#             sub_prompt = UserSubPrompt.objects.create(master_prompt=master_prompt, prompt_text=prompt)
-
-#             for i in range(5):
-#                 generation = UserImageGeneration.objects.create(
-#                     sub_prompt=sub_prompt,
-#                     num_images=num_images,
-#                     created_at=timezone.now()
-#                 )
-
-#                 folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}/scenario_{i+1}")
-#                 images = create_sample_image(prompt, num_images, folder)
-#                 for img_path in images:
-#                     image_instance = UserGeneratedImage.objects.create(generation=generation, image=img_path)
-#                     all_images.append({
-#                         'url': image_instance.image.url,
-#                         'prompt': prompt,
-#                         'scenario': i + 1
-#                     })
-
-#         return JsonResponse({'images': all_images})
-
 
 @csrf_exempt
 def generate_images(request):
@@ -227,33 +114,29 @@ def generate_images(request):
                     created_at=timezone.now()
                 )
 
-                folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}/scenario_{i+1}")
-                images = create_sample_image(prompt, num_images, folder)
+                folder = os.path.join(settings.MEDIA_ROOT, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}")
+                location = os.path.join(settings.MEDIA_URL, f"{master_prompt.unique_id}/{prompt.replace(' ', '_')}")
+                images = create_sample_image(prompt, num_images, folder, location)
                 
                 for img_path in images:
-                    image_instance = UserGeneratedImage.objects.create(generation=generation, image=img_path)
+                    # Log the length of the image path
+                    logger.info(f'Image path length: {len(img_path)}')
+                    if len(img_path) > 1024:
+                        logger.warning(f'Image path exceeds 1024 characters: {img_path}')
+                    
+                    image_instance = UserGeneratedImage.objects.create(generation=generation, image_path=img_path)
                     all_images.append({
-                        'id': image_instance.id,  # Assuming you want the ID of the generated image instance
-                        'url': image_instance.image.url,
+                        'id': image_instance.id,
+                        'url': image_instance.image_path,
                         'sub_prompt_id': sub_prompt.id,
                         'sub_prompt_text': sub_prompt.prompt_text,
                         'num_images': generation.num_images,
-                        'created_at': generation.created_at.strftime('%Y-%m-%d %H:%M:%S'),  # Format datetime as string
+                        'created_at': generation.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     })
 
         return JsonResponse({'images': all_images})
 
     return JsonResponse({'error': 'Invalid method'}, status=405)
-
-# @api_view(['GET'])
-# def get_user_prompts(request, username):
-#     user = User.objects.get(username=username)
-#     prompts = UserImageGeneration.objects.filter(user=user).values('id','prompt', 'num_images', 'created_at').order_by('-created_at')  # Query all prompts and select specific fields
-#     for prompt in prompts:
-#         prompt['prompt'] = ' '.join(prompt['prompt'].split()[:3]) + ' ...'
-    
-#     return JsonResponse(list(prompts), safe=False)
-
 
 @csrf_exempt
 def get_user_prompts(request, username):
@@ -272,28 +155,7 @@ def get_user_prompts(request, username):
                 'sub_prompts': list(sub_prompts)
             }
             data.append(master_prompt_data)
-        # print(data)
         return JsonResponse(data, safe=False)
-
-
-# def fetch_images(request):
-#     if request.method == 'GET':
-#         prompt = request.GET.get('prompt')
-#         generations = UserImageGeneration.objects.filter(id=prompt)
-#         all_images = []
-
-#         for generation in generations:
-#             images = UserGeneratedImage.objects.filter(generation=generation)
-#             for image in images:
-#                 all_images.append({
-#                     'id': image.id,
-#                     'url': image.image.url,
-#                     'prompt': generation.prompt,
-#                 })
-
-#         return JsonResponse({'images': all_images})
-
-
 
 def fetch_images(request):
     if request.method == 'GET':
@@ -313,7 +175,7 @@ def fetch_images(request):
                 for image in images:
                     all_images.append({
                         'id': image.id,
-                        'url': image.image.url,
+                        'url': image.image_path,
                         'sub_prompt_id': sub_prompt.id,
                         'sub_prompt_text': sub_prompt.prompt_text,
                         'num_images': generation.num_images,
