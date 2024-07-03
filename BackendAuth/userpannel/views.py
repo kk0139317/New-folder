@@ -140,8 +140,12 @@ def generate_images(request):
                         'num_images': generation.num_images,
                         'created_at': generation.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     })
-
-        return JsonResponse({'images': all_images})
+        
+            profile = ProfileDetail.objects.get(username=username)
+            profile_data = {
+                'credit': profile.credit,
+            }
+        return JsonResponse({'images': all_images,'profile_data':profile_data })
 
     return JsonResponse({'error': 'Invalid method'}, status=405)
 
@@ -209,3 +213,19 @@ def get_profile(request, username):
             return JsonResponse({'error': 'Profile not found'}, status=404)
     else:
         return JsonResponse({'error': 'Invalid method'}, status=405)
+    
+
+
+@csrf_exempt
+def purchase_credit(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        purchase_amount = data.get('purchaseAmount', 0)  # Adjust based on your frontend payload
+        # Process the purchase logic here, update user's credit, etc.
+        # Example:
+        profile = ProfileDetail.objects.get(username=data.get('username'))
+        profile.credit += purchase_amount
+        profile.save()
+        return JsonResponse({'message': 'Credit purchase successful'}, status=200)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)

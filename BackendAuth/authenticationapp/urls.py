@@ -11,4 +11,5 @@ urlpatterns = [
     path('prompts/<str:username>', views.get_user_prompts, name='get_user_prompts'),
     path('fetch-images/', views.fetch_images, name='fetch_images'),
     path('get_profile/<str:username>', views.get_profile, name='get_profile'),
+    path('purchase-credit/', views.purchase_credit, name='purchase_credit'),
 ]
